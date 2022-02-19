@@ -1,0 +1,334 @@
+<!doctype html><html lang=sr>
+<head>
+<title>Рецепт за IPv6 рутер на штапићу – дио први :: Nik014</title>
+<meta charset=utf-8>
+<meta name=viewport content="width=device-width,initial-scale=1">
+<meta name=description content="Како да, помоћу *Raspberry Pi*-ја и 6in4 тунела, направите нешто налик [VIIRB](https://ungleich.ch/u/products/viirb-ipv6-box/)-у (*VPN IPv6 IoT Router Box*) и обезбиједите IPv6 у вашој кућној мрежи.">
+<meta name=keywords content>
+<meta name=robots content="noodp">
+<link rel=canonical href=https://nik014.github.io/posts/recept_ipv6_ruter_1/>
+<link rel=stylesheet href=https://nik014.github.io/assets/style.css>
+<link rel=stylesheet href=https://nik014.github.io/assets/green.css>
+<link rel=apple-touch-icon href=https://nik014.github.io/img/apple-touch-icon-192x192.png>
+<link rel="shortcut icon" href=https://nik014.github.io/img/favicon/green.png>
+<meta name=twitter:card content="summary">
+<meta property="og:locale" content="sr">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Рецепт за IPv6 рутер на штапићу – дио први">
+<meta property="og:description" content="Како да, помоћу *Raspberry Pi*-ја и 6in4 тунела, направите нешто налик [VIIRB](https://ungleich.ch/u/products/viirb-ipv6-box/)-у (*VPN IPv6 IoT Router Box*) и обезбиједите IPv6 у вашој кућној мрежи.">
+<meta property="og:url" content="https://nik014.github.io/posts/recept_ipv6_ruter_1/">
+<meta property="og:site_name" content="Nik014">
+<meta property="og:image" content="https://nik014.github.io/posts/recept_ipv6_ruter_1a.jpg">
+<meta property="og:image:width" content="2048">
+<meta property="og:image:height" content="1024">
+<meta property="article:published_time" content="2022-02-17 00:00:00 +0000 UTC">
+</head>
+<body class=green>
+<div class="container center">
+<header class=header>
+<div class=header__inner>
+<div class=header__logo>
+<a href=/>
+<div class=logo>
+/home/Nik014
+</div>
+</a>
+</div>
+</div>
+</header>
+<div class=content>
+<div class=post>
+<h1 class=post-title>
+<a href=https://nik014.github.io/posts/recept_ipv6_ruter_1/>Рецепт за IPv6 рутер на штапићу – дио први</a></h1>
+<div class=post-meta>
+<span class=post-date>
+2022-02-17
+</span>
+</div>
+<img src=https://nik014.github.io/posts/recept_ipv6_ruter_1a.jpg class=post-cover alt="Рецепт за IPv6 рутер на штапићу – дио први" title="Cover Image">
+<div class=table-of-contents>
+<h2>
+Садржај
+</h2>
+<nav id=TableOfContents>
+<ul>
+<li><a href=#потребни-састојци>Потребни састојци</a></li>
+<li><a href=#качење-raspberry-ја-на-lan>Качење <em>Raspberry</em>-ја на LAN</a></li>
+<li><a href=#подешавање-тунела>Подешавање тунела</a></li>
+<li><a href=#прављење-рутера>Прављење рутера</a></li>
+<li><a href=#ddclient-за-динамичке-ipv4-адресе><em>ddclient</em> за динамичке IPv4 адресе</a></li>
+<li><a href=#шта-даље>Шта даље?</a></li>
+<li><a href=#лектира>Лектира</a></li>
+</ul>
+</nav>
+</div>
+<div class=post-content><div>
+<blockquote>
+<p>Како да, помоћу <em>Raspberry Pi</em>-ја и 6in4 тунела, направите нешто налик <a href=https://ungleich.ch/u/products/viirb-ipv6-box/>VIIRB</a>-у (<em>VPN IPv6 IoT Router Box</em>) и обезбиједите IPv6 везу у вашој кућној мрежи.</p>
+</blockquote>
+<h2 id=потребни-састојци>Потребни састојци<a href=#потребни-састојци class=hanchor arialabel=Anchor>&#8983;</a> </h2>
+<ul>
+<li>Интернет веза и јавна<sup id=fnref:1><a href=#fn:1 class=footnote-ref role=doc-noteref>1</a></sup> IPv4 адреса;</li>
+</ul>
+<ul>
+<li>
+<p>тунел и /64 IPv6 префикс који можете бесплатно добити од <a href=https://tunnelbroker.net/><em>HE Tunnelbroker</em></a>-а након регистрације;</p>
+</li>
+<li>
+<p>неки Линукс уређај на локалној мрежи који ће да вам служи као IPv6 рутер. То може бити ваш постојећи рутер (ако на њему имате <em>OpenWRT</em> или нешто слично), <em>Raspberry Pi</em>, рачунар, па и виртуелна машина&mldr;</p>
+</li>
+<li>
+<p><a href=https://www.freedesktop.org/software/systemd/man/systemd.network.html><code>systemd-networkd</code></a> (и <a href=https://www.freedesktop.org/software/systemd/man/systemd-resolved.service.html><code>systemd-resolved</code></a>) за подешавање мреже.</p>
+</li>
+</ul>
+<p>Овдје ћемо користити <em>Raspberry Pi 3B+</em> са инсталираним <a href=https://archlinuxarm.org/platforms/armv8/broadcom/raspberry-pi-3><em>Arch Linux ARM</em></a>-ом. Он ће бити задужен за IPv6, док ће већ постојећи рутер да барата IPv4 саобраћајем.</p>
+<h2 id=качење-raspberry-ја-на-lan>Качење <em>Raspberry</em>-ја на LAN<a href=#качење-raspberry-ја-на-lan class=hanchor arialabel=Anchor>&#8983;</a> </h2>
+<p>Задајмо нашем будућем рутеру статичку LAN адресу у <code>/etc/systemd/network/eth0.network</code>:</p>
+<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-systemd data-lang=systemd><span style=color:#66d9ef>[Match]</span>
+<span style=color:#a6e22e>Name</span><span style=color:#f92672>=</span><span style=color:#e6db74>eth0</span>
+
+<span style=color:#66d9ef>[Network]</span>
+<span style=color:#a6e22e>Address</span><span style=color:#f92672>=</span><span style=color:#e6db74>192.168.0.2/24</span>
+<span style=color:#a6e22e>Gateway</span><span style=color:#f92672>=</span><span style=color:#e6db74>192.168.0.1</span>
+</code></pre></div><p>Учитајмо ову конфигурацију &ndash; <code>systemctl restart systemd-networkd</code>. Наш уређај би требало да аутоматски добије и IPv6 линк-локалну адресу. Препознаћете је по томе што почиње са <code>fe80::</code> и служи, између осталог, за комуникацију и аутоконфигурацију у локалној мрежи:</p>
+<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-shell-session data-lang=shell-session># ip addr
+...
+2: eth0: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500 qdisc mq state UP group default qlen 1000
+    link/ether f6:70:52:b4:3d:64 brd ff:ff:ff:ff:ff:ff
+    inet 192.168.0.2/24 brd 192.168.0.255 scope global eth0
+       valid_lft forever preferred_lft forever
+    inet6 fe80::f470:52ff:feb4:3d64/64 scope link 
+       valid_lft forever preferred_lft forever
+...
+</code></pre></div><p>Након пинговања мултикаст адресе <code>ff02::1</code> добићемо одговоре од осталих IPv6 уређаја у нашој мрежи:</p>
+<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-shell-session data-lang=shell-session># ping -I eth0 ff02::1
+PING ff02::1(ff02::1) from :: eth0: 56 data bytes
+64 bytes from fe80::9854:b4ff:fe01:d160%eth0: icmp_seq=1 ttl=64 time=0.509 ms
+64 bytes from fe80::8c04:97ff:fe1e:5b20%eth0: icmp_seq=1 ttl=64 time=2.14 ms
+64 bytes from fe80::2047:d1ff:fec2:1802%eth0: icmp_seq=1 ttl=64 time=2.24 ms
+^C
+--- ff02::1 ping statistics ---
+1 packets transmitted, 1 received, +2 duplicates, 0% packet loss, time 0ms
+rtt min/avg/max/mdev = 0.509/1.631/2.244/0.794 ms
+</code></pre></div><p>Сачувајмо ову адресу, јер ће нам ваљати и касније:</p>
+<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-shell-session data-lang=shell-session># echo <span style=color:#e6db74>&#39;ff02::1 ip6-neighbors&#39;</span> &gt;&gt; /etc/hosts
+</code></pre></div><h2 id=подешавање-тунела>Подешавање тунела<a href=#подешавање-тунела class=hanchor arialabel=Anchor>&#8983;</a> </h2>
+<p>Након што смо се регистровали на <a href=https://tunnelbroker.net/>tunnelbroker.net</a>, направили нови тунел и уписали нашу јавну IPv4 адресу као једну од крајњих тачака тунела, биће нам додијељене:</p>
+<ul>
+<li>двије IPv6 адресе за тај тунел (једна &ndash; <code>2001:db8:aaaa:f::1</code> &ndash; је адреса сервера, а друга &ndash; <code>2001:db8:aaaa:f::2</code> &ndash; је адреса нашег будућег рутера),</li>
+<li>и један <code>2001:db8:aaab:f::/64</code> префикс одакле ћемо додјељивати адресе уређајима на нашој мрежи.</li>
+</ul>
+<img src=/posts/recept_ipv6_ruter_1b.png alt="Мрежни дијаграм" class=center>
+<p>Тунел ћемо подесити у <code>/etc/systemd/network/sit-he.netdev</code> и <code>sit-he.network</code>:</p>
+<div class=collapsable-code>
+<input id=sit-he.netdev type=checkbox>
+<label for=sit-he.netdev>
+<span class=collapsable-code__language>systemd</span>
+<span class=collapsable-code__title>sit-he.netdev</span>
+<span class=collapsable-code__toggle data-label-expand=△ data-label-collapse=▽></span>
+</label>
+<pre class=language-systemd><code>
+[NetDev]
+Name=sit-he
+Kind=sit
+# Ако вам веза буде нестабилна, можете испод
+# ставити неку мању вриједност. Само не мању
+# од 1280.
+MTUBytes=1480
+
+[Tunnel]
+Local=192.168.0.2
+# Адреса tunnelbroker-овог сервера којег сте
+# изабрали приликом прављења тунела.
+Remote=216.66.87.14
+TTL=255
+</code></pre>
+</div>
+<div class=collapsable-code>
+<input id=sit-he.network type=checkbox>
+<label for=sit-he.network>
+<span class=collapsable-code__language>systemd</span>
+<span class=collapsable-code__title>sit-he.network</span>
+<span class=collapsable-code__toggle data-label-expand=△ data-label-collapse=▽></span>
+</label>
+<pre class=language-systemd><code>
+[Match]
+Name=sit-he
+
+[Network]
+Address=2001:db8:aaaa:f::2/64
+Gateway=2001:db8:aaaa:f::1
+DNSOverTLS=yes
+DNS=2001:470:20::2#ordns.he.net
+</code></pre>
+</div>
+<p>Желимо да се овај тунел подигне након подизања и конфигурације <code>eth0</code> интерфејса, што постижемо са:</p>
+<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-shell-session data-lang=shell-session># echo <span style=color:#e6db74>&#39;Tunnel=sit-he&#39;</span> &gt;&gt; /etc/systemd/network/eth0.network
+</code></pre></div><p>Рестартујмо <code>networkd</code> и тестирајмо наш тунел:</p>
+<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-shell-session data-lang=shell-session># systemctl restart systemd-networkd.service
+# ip addr show dev sit-he
+5: sit-he@eth0: &lt;POINTOPOINT,NOARP,UP,LOWER_UP&gt; mtu 1480 qdisc noqueue state UNKNOWN group default qlen 1000
+    link/sit 192.168.0.2 peer 216.66.87.14
+    inet6 2001:db8:aaaa:f::2/64 scope global 
+       valid_lft forever preferred_lft forever
+       
+# ping -I sit-he ip6-neighbors 
+PING ip6-neighbors(ip6-neighbors (ff02::1)) from :: sit-he: 56 data bytes
+64 bytes from tunnelnik014.tunnel.tserv1.bud1.ipv6.he.net (2001:db8:aaaa:f::1): icmp_seq=1 ttl=64 time=65.3 ms
+64 bytes from tunnelnik014.tunnel.tserv1.bud1.ipv6.he.net (2001:db8:aaaa:f::1): icmp_seq=2 ttl=64 time=67.6 ms
+^C
+--- ip6-neighbors ping statistics ---
+2 packets transmitted, 2 received, 0% packet loss, time 1002ms
+rtt min/avg/max/mdev = 65.304/66.445/67.586/1.141 ms
+<span style=color:#960050;background-color:#1e0010>
+</span><span style=color:#960050;background-color:#1e0010></span># ping google.com
+PING google.com(mct01s09-in-x0e.1e100.net (2a00:1450:4018:800::200e)) 56 data bytes
+64 bytes from mct01s09-in-x0e.1e100.net (2a00:1450:4018:800::200e): icmp_seq=1 ttl=117 time=188 ms
+^C
+--- google.com ping statistics ---
+1 packets transmitted, 1 received, 0% packet loss, time 0ms
+rtt min/avg/max/mdev = 187.548/187.548/187.548/0.000 ms
+</code></pre></div><p>Пошто смо пинговали неку удаљену IPv6 адресу, знамо да наш тунел ради и да смо успјешно „спровели“ IPv6 до нашег <em>Raspberry</em>-ја :) Сад то треба да подјелимо и са остатком мреже.</p>
+<h2 id=прављење-рутера>Прављење рутера<a href=#прављење-рутера class=hanchor arialabel=Anchor>&#8983;</a> </h2>
+<p>Да бисмо, коначно, од нашег <em>RPi</em>-ја направили рутер, морамо још једном измијенити <code>eth0.network</code>:</p>
+<div class=collapsable-code>
+<input id=eth0.network type=checkbox>
+<label for=eth0.network>
+<span class=collapsable-code__language>systemd</span>
+<span class=collapsable-code__title>eth0.network</span>
+<span class=collapsable-code__toggle data-label-expand=△ data-label-collapse=▽></span>
+</label>
+<pre class=language-systemd><code>
+[Match]
+Name=eth0
+
+[Network]
+Address=192.168.0.2/24
+Gateway=192.168.0.1
+Tunnel=sit-he
+# eth0 интерфејсу додјељујемо IPv6 адресу:
+Address=2001:db8:aaab:f::2/64
+# Подешавамо адресу IPv6 DNS сервера на који 
+# ћемо упутити остале уређаје у нашем LAN-у:
+DNSOverTLS=yes
+DNS=2001:470:20::2#ordns.he.net
+DNS=74.82.42.42#ordns.he.net
+# Кажемо *RPi*-ју да ради искључиво као
+# IPv6 рутер, пошто IPv4 рутер већ имамо:
+IPForward=ipv6
+# И кажемо му да се хвали на сав глас да је 
+# рутер (RA = Router Advertisements), како би
+# то знали и остали уређаји на мрежи:
+IPv6SendRA=yes
+
+[IPv6SendRA]
+UplinkInterface=sit-he
+RouterLifetimeSec=3600
+EmitDNS=yes
+
+[IPv6Prefix]
+# Префикс из којег ће уређаји на LAN-у узимати
+# адресе:
+Prefix=2001:db8:aaab:f::/64
+</code></pre>
+</div>
+<p>Провјеримо да ли су ова подешавања добра и да ли смо добили нову адресу на нашем <code>eth0</code> интерфејсу:</p>
+<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-shell-session data-lang=shell-session># systemctl restart systemd-networkd.service
+# ip addr show dev eth0 
+2: eth0: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500 qdisc mq state UP group default qlen 1000
+    link/ether f6:70:52:b4:3d:64 brd ff:ff:ff:ff:ff:ff
+    inet 192.168.0.2/24 brd 192.168.0.255 scope global eth0
+       valid_lft forever preferred_lft forever
+    inet6 2001:db8:aaab:f::2/64 scope global 
+       valid_lft forever preferred_lft forever
+    inet6 fe80::f470:52ff:feb4:3d64/64 scope link 
+       valid_lft forever preferred_lft forever
+</code></pre></div><p>И оно што је најбитније за рутер – провјеримо имамо ли добре руте:</p>
+<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-shell-session data-lang=shell-session># ip -6 route list 
+::1 dev lo proto kernel metric 256 pref medium
+2001:db8:aaaa:f::/64 dev sit-he proto kernel metric 256 pref medium
+2001:db8:aaab:f::/64 dev eth0 proto kernel metric 256 pref medium
+fe80::/64 dev eth0 proto kernel metric 256 pref medium
+default via 2001:db8:aaaa:f::1 dev sit-he proto static metric 1024 pref medium
+</code></pre></div><p>Руте нам кажу следеће:</p>
+<ul>
+<li>
+<p>сваки IPv6 пакет који стигне до <em>RPi</em>-ја, а адресиран је за <code>2001:db8:aaaa:f::/64</code> (тунел) ће бити прослијеђен кроз <code>sit-he</code> интерфејс (којим смо и повезани са тунелом),</p>
+</li>
+<li>
+<p>пакет који је адресиран за нашу <code>2001:db8:aaab:f::/64</code> локалну мрежу ће бити послат кроз <code>eth0</code> интерфејс,</p>
+</li>
+<li>
+<p>остали пакети ће бити прослијеђени <em>Тunnelbroker</em>-овој машини на другом крају тунела (тј. на адресу <code>2001:db8:aaaa:f::1</code>), па нек она гледа шта ће даље с њима.</p>
+</li>
+</ul>
+<p>Ово је управо то што и желимо да наш нови рутер ради. Остало је још да провјеримо да ли су IPv6 адресе додијељене и осталим уређајима у локалној мрежи:</p>
+<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-shell-session data-lang=shell-session>[Nik014@laptop ~]$ ip addr show dev wlan0 
+3: wlan0: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500 qdisc mq state UP group default qlen 1000
+...
+    inet6 2001:db8:aaab:f:9854:b4ff:fe01:d160/64 scope global dynamic mngtmpaddr noprefixroute 
+       valid_lft 3146sec preferred_lft 1346sec
+...
+</code></pre></div><p>Сад можемо отићи на <a href=https://ipv6-test.com/>https://ipv6-test.com/</a> и „уживати“ у новој IPv6 вези :)</p>
+<h2 id=ddclient-за-динамичке-ipv4-адресе><em>ddclient</em> за динамичке IPv4 адресе<a href=#ddclient-за-динамичке-ipv4-адресе class=hanchor arialabel=Anchor>&#8983;</a> </h2>
+<p>Ако немате статичку IPv4 адресу, морате још инсталирати и подесити <code>ddclient</code> да повремено освјежава ту адресу на вашем крају <code>sit-he</code> тунела:</p>
+<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-shell-session data-lang=shell-session># pacman -S ddclient
+...
+# cat <span style=color:#e6db74>&lt;&lt; _EOF_</span> &gt;&gt; /etc/ddclient/ddclient.conf
+<span style=color:#960050;background-color:#1e0010>
+</span><span style=color:#960050;background-color:#1e0010></span>#<span style=color:#75715e>#</span>
+#<span style=color:#75715e># HE Tunnelbroker (https://www.tunnelbroker.net)</span>
+#<span style=color:#75715e>#</span>
+protocol=dyndns2
+use=web
+web=checkip.dns.he.net
+server=ipv4.tunnelbroker.net
+ssl=yes
+login=Vaš_username_na_tunnelbrokeru
+password=Update_key_token_za_vaš_tunel
+Tunnel_ID_broj
+_EOF_
+# systemctl enable --now ddclient.service
+</code></pre></div><p>Број и <em>update key</em> за ваш тунел ћете наћи на <em>Tunnelbroker</em> сајту.</p>
+<h2 id=шта-даље>Шта даље?<a href=#шта-даље class=hanchor arialabel=Anchor>&#8983;</a> </h2>
+<p>Осим основне (рутирање саобраћаја), вјероватно ћемо хтјети да наш <em>RPi</em> рутер обавља и неке додатне функције. У наредним постовима ћемо видјети како да на њему подесимо DHCPv6 сервер<sup id=fnref:2><a href=#fn:2 class=footnote-ref role=doc-noteref>2</a></sup>, firewall и DNS сервер за локалну мрежу.</p>
+<p>За сада можете да „пентестирате“ вашег провајдера, тако што ћете <em>RPi</em> повезати директно са кабловским/DSL модемом (или тако што ћете рутер ставити у <em>bridge</em> мод) а у горњим подешавањима ставити вашу јавну IPv4 адресу умјесто <code>192.168.0.2</code>. Овако ће <em>RPi</em>, умјесто уређајима у кућној мрежи, слати <em>Router Advertisements</em> сусједним рутерима на провајдеровој страни мреже. Ако они прихвате RA које шаље ваш <em>RPi</em> и од њега узму IPv6 адресу, значи да су подложни <a href=https://gcn.com/cybersecurity/2013/08/easy-to-use-attack-exploits-ipv6-traffic-on-ipv4-networks/281426/><em>rogue router</em></a> нападу.</p>
+<h2 id=лектира>Лектира<a href=#лектира class=hanchor arialabel=Anchor>&#8983;</a> </h2>
+<ol>
+<li>
+<p><a href=https://www.freedesktop.org/software/systemd/man/systemd.network.html><code>systemd.network</code> man page – freedesktop.org</a></p>
+</li>
+<li>
+<p><a href=https://www.freedesktop.org/software/systemd/man/systemd.netdev.html><code>systemd.netdev</code> man page – freedesktop.org</a></p>
+</li>
+<li>
+<p><a href=https://blog.apnic.net/2019/10/18/how-to-ipv6-neighbor-discovery/>How-to: IPv6 Neighbor Discovery | APNIC Blog</a></p>
+</li>
+</ol>
+<section class=footnotes role=doc-endnotes>
+<hr>
+<ol>
+<li id=fn:1 role=doc-endnote>
+<p>Ваша IPv4 не мора бити статичка, али мора бити јавна. Ако је WAN адреса на вашем рутеру из опсега <code>100.64.0.0</code>-<code>100.127.255.255</code>, то значи да сте иза провајдеровог CGNAT-а и да ово неће радити, јер нећете моћи да направите тунел ка <em>Tunnelbroker</em>-у. У том случају остаје вам могућност да узмете неки VPS и да ка њему правите тунел. За више детаља о CGNAT-у погледајте <a href=https://milankragujevic.com/sta-je-cgnat>овај чланак</a>.&#160;<a href=#fnref:1 class=footnote-backref role=doc-backlink>&#8617;&#xfe0e;</a></p>
+</li>
+<li id=fn:2 role=doc-endnote>
+<p><a href=https://tools.ietf.org/id/draft-yourtchenko-ra-dhcpv6-comparison-00.html>A. Yourtchenko: <em>A comparison between the DHCPv6 and RA based host configuration</em></a>&#160;<a href=#fnref:2 class=footnote-backref role=doc-backlink>&#8617;&#xfe0e;</a></p>
+</li>
+</ol>
+</section>
+</div></div>
+</div>
+</div>
+<footer class=footer>
+<div class=footer__inner>
+<div class="copyright copyright--user">
+<span>Nik014 © 2022 CC-BY 4.0 :: Powered by Hugo</span>
+<span>:: Theme made by <a href=https://twitter.com/panr>panr</a></span>
+</div>
+</div>
+</footer>
+<script src=https://nik014.github.io/assets/main.js></script>
+<script src=https://nik014.github.io/assets/prism.js></script>
+</div>
+</body>
+</html>
